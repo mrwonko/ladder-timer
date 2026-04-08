@@ -35,8 +35,19 @@ enum class WorkoutState {
     IDLE, REPPING, RESTING
 }
 
-class LadderViewModel : ViewModel() {
+class LadderViewModel() : ViewModel() {
     var currentState by mutableStateOf(WorkoutState.IDLE)
+        private set
+
+    // TODO keep track of remaining time of workout (declaratively via end timestamp?)
+    // TODO keep track of current rep count
+    // TODO keep track of whether we're going up or down the ladder
+
+    fun startWorkout() {
+        currentState = WorkoutState.REPPING
+    }
+
+    // TODO after transitioning to resting, let the user choose if they have started going down, intend to go down, or keep going up
 }
 
 @Composable
@@ -44,9 +55,12 @@ fun LadderApp(viewModel: LadderViewModel) {
     LadderTimerTheme {
         AppScaffold {
             when (viewModel.currentState) {
-                WorkoutState.IDLE -> SplashScreen({ viewModel.currentState = WorkoutState.REPPING })
-                WorkoutState.REPPING -> { /* TODO */ }
-                WorkoutState.RESTING -> { /* TODO */ }
+                WorkoutState.IDLE -> SplashScreen({ viewModel.startWorkout() })
+                WorkoutState.REPPING -> { /* TODO */
+                }
+
+                WorkoutState.RESTING -> { /* TODO */
+                }
             }
         }
     }
