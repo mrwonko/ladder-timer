@@ -35,7 +35,7 @@ enum class WorkoutState {
     IDLE, REPPING, RESTING
 }
 
-class LadderViewModel() : ViewModel() {
+class LadderViewModel : ViewModel() {
     var currentState by mutableStateOf(WorkoutState.IDLE)
         private set
 
@@ -55,7 +55,7 @@ fun LadderApp(viewModel: LadderViewModel) {
     LadderTimerTheme {
         AppScaffold {
             when (viewModel.currentState) {
-                WorkoutState.IDLE -> SplashScreen({ viewModel.startWorkout() })
+                WorkoutState.IDLE -> SplashScreen { viewModel.startWorkout() }
                 WorkoutState.REPPING -> { /* TODO */
                 }
 
@@ -68,7 +68,7 @@ fun LadderApp(viewModel: LadderViewModel) {
 
 @Composable
 fun SplashScreen(onStart: () -> Unit = {}) {
-    ScreenScaffold { contentPadding -> // ScreenScaffold provides default padding; adjust as needed
+    ScreenScaffold {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             // Material 3 Button (replaces the old Chip)
             Button(onClick = onStart) {
