@@ -81,6 +81,15 @@ fun SplashScreen(onStart: () -> Unit = {}) {
 @WearPreviewDevices
 @WearPreviewFontScales
 @Composable
-fun DefaultPreview() {
+fun SplashScreenPreview() {
     LadderApp(LadderViewModel())
+}
+
+@WearPreviewDevices
+@WearPreviewFontScales
+@Composable
+fun ReppingPreview() {
+    val model = LadderViewModel()
+    model.startWorkout()
+    LadderApp(model)
 }
