@@ -12,11 +12,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
-import androidx.wear.compose.material3.AngularDirection
 import androidx.wear.compose.material3.AppScaffold
-import androidx.wear.compose.material3.ArcProgressIndicator
 import androidx.wear.compose.material3.Button
+import androidx.wear.compose.material3.CircularProgressIndicator
+import androidx.wear.compose.material3.MaterialTheme
+import androidx.wear.compose.material3.ProgressIndicatorDefaults
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.ui.tooling.preview.WearPreviewDevices
@@ -81,10 +83,16 @@ fun ReppingScreen() {
     ScreenScaffold {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("13:37")
-            ArcProgressIndicator(
-                modifier= Modifier.fillMaxSize(0.75f),
-                startAngle = -90f, endAngle = 180f,
-                angularDirection = AngularDirection.Clockwise,
+            CircularProgressIndicator(
+                modifier= Modifier.fillMaxSize(),
+                strokeWidth = 4.dp,
+                startAngle = 290f,
+                endAngle = 250f,
+                progress = { .75f },
+                colors = ProgressIndicatorDefaults.colors(
+                    trackColor = MaterialTheme.colorScheme.onBackground.copy(alpha=.1f),
+                    indicatorColor = MaterialTheme.colorScheme.onBackground.copy(alpha=.4f),
+                ),
             )
         }
     }
