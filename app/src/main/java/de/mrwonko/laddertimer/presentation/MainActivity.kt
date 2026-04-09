@@ -14,12 +14,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
+import androidx.wear.compose.foundation.rememberSwipeToDismissBoxState
 import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.CircularProgressIndicator
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ProgressIndicatorDefaults
 import androidx.wear.compose.material3.ScreenScaffold
+import androidx.wear.compose.material3.SwipeToDismissBox
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.ui.tooling.preview.WearPreviewDevices
 import androidx.wear.compose.ui.tooling.preview.WearPreviewFontScales
@@ -51,17 +53,28 @@ class LadderViewModel : ViewModel() {
         currentState = WorkoutState.REPPING
     }
 
+    fun abortWorkout() {
+        currentState = WorkoutState.IDLE
+    }
+
     // TODO after transitioning to resting, let the user choose if they have started going down, intend to go down, or keep going up
 }
 
 @Composable
 fun LadderApp(viewModel: LadderViewModel) {
+    val swipeToDismissBoxState = rememberSwipeToDismissBoxState()
     LadderTimerTheme {
         AppScaffold {
-            when (viewModel.currentState) {
-                WorkoutState.IDLE -> SplashScreen { viewModel.startWorkout() }
-                WorkoutState.REPPING -> { ReppingScreen() }
-                WorkoutState.RESTING -> { /* TODO */ }
+            SwipeToDismissBox(
+                state = swipeToDismissBoxState,
+                userSwipeEnabled = viewModel.currentState != WorkoutState.IDLE,
+                onDismissed = { viewModel.abortWorkout() }
+            ) { isBackground ->
+                if (isBackground || viewModel.currentState == WorkoutState.IDLE) {
+                    SplashScreen { viewModel.startWorkout() }
+                } else {
+                    WorkoutScreen()
+                }
             }
         }
     }
@@ -79,7 +92,7 @@ fun SplashScreen(onStart: () -> Unit = {}) {
 }
 
 @Composable
-fun ReppingScreen() {
+fun WorkoutScreen() {
     ScreenScaffold {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("13:37")
