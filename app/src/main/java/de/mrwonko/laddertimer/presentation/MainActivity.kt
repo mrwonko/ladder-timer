@@ -32,7 +32,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            LadderApp(LadderViewModel())
+            LadderApp(LadderViewModel{keepScreenOn ->
+                if (keepScreenOn) {
+                    this.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                } else {
+                    this.window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                }
+            })
         }
     }
 }
@@ -41,7 +47,9 @@ enum class WorkoutState {
     IDLE, REPPING, RESTING
 }
 
-class LadderViewModel : ViewModel() {
+class LadderViewModel(keepScreenOn: (Boolean) -> Unit) : ViewModel() {
+    private val keepScreenOn = keepScreenOn;
+
     var currentState by mutableStateOf(WorkoutState.IDLE)
         private set
 
@@ -50,10 +58,12 @@ class LadderViewModel : ViewModel() {
     // TODO keep track of whether we're going up or down the ladder
 
     fun startWorkout() {
+        keepScreenOn(true)
         currentState = WorkoutState.REPPING
     }
 
     fun abortWorkout() {
+        keepScreenOn(false)
         currentState = WorkoutState.IDLE
     }
 
@@ -115,14 +125,14 @@ fun WorkoutScreen() {
 @WearPreviewFontScales
 @Composable
 fun SplashScreenPreview() {
-    LadderApp(LadderViewModel())
+    LadderApp(LadderViewModel({}))
 }
 
 @WearPreviewDevices
 @WearPreviewFontScales
 @Composable
 fun ReppingPreview() {
-    val model = LadderViewModel()
+    val model = LadderViewModel({})
     model.startWorkout()
     LadderApp(model)
 }
