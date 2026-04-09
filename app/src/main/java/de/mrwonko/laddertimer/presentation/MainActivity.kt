@@ -13,7 +13,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.ViewModel
+import androidx.wear.compose.material3.AngularDirection
 import androidx.wear.compose.material3.AppScaffold
+import androidx.wear.compose.material3.ArcProgressIndicator
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
@@ -56,11 +58,8 @@ fun LadderApp(viewModel: LadderViewModel) {
         AppScaffold {
             when (viewModel.currentState) {
                 WorkoutState.IDLE -> SplashScreen { viewModel.startWorkout() }
-                WorkoutState.REPPING -> { /* TODO */
-                }
-
-                WorkoutState.RESTING -> { /* TODO */
-                }
+                WorkoutState.REPPING -> { ReppingScreen() }
+                WorkoutState.RESTING -> { /* TODO */ }
             }
         }
     }
@@ -70,10 +69,23 @@ fun LadderApp(viewModel: LadderViewModel) {
 fun SplashScreen(onStart: () -> Unit = {}) {
     ScreenScaffold {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            // Material 3 Button (replaces the old Chip)
             Button(onClick = onStart) {
                 Text(stringResource(R.string.start_button_text))
             }
+        }
+    }
+}
+
+@Composable
+fun ReppingScreen() {
+    ScreenScaffold {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("13:37")
+            ArcProgressIndicator(
+                modifier= Modifier.fillMaxSize(0.75f),
+                startAngle = -90f, endAngle = 180f,
+                angularDirection = AngularDirection.Clockwise,
+            )
         }
     }
 }
