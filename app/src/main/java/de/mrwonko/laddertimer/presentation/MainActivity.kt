@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
+import androidx.wear.ambient.AmbientLifecycleObserver
 import androidx.wear.compose.foundation.rememberSwipeToDismissBoxState
 import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.material3.Button
@@ -29,8 +30,20 @@ import de.mrwonko.laddertimer.R
 import de.mrwonko.laddertimer.presentation.theme.LadderTimerTheme
 
 class MainActivity : ComponentActivity() {
+    private val callbacks = object : AmbientLifecycleObserver.AmbientLifecycleCallback {
+        override fun onEnterAmbient(ambientDetails: AmbientLifecycleObserver.AmbientDetails) {
+            // move to background to avoid ambient transition digital clock and go straight to watch face
+            moveTaskToBack(true)
+        }
+
+        override fun onExitAmbient() {
+        }
+    }
+    private var ambientObserver = AmbientLifecycleObserver(this, callbacks)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        lifecycle.addObserver(ambientObserver)
         setContent {
             LadderApp(LadderViewModel{keepScreenOn ->
                 if (keepScreenOn) {

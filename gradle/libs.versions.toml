@@ -1,5 +1,6 @@
 [versions]
 agp = "9.1.0"
+ambient = "1.3.0"
 playServicesWearable = "18.0.0"
 kotlin = "2.2.10"
 composeBom = "2024.09.00"
@@ -11,6 +12,7 @@ activityCompose = "1.8.0"
 coreSplashscreen = "1.2.0"
 
 [libraries]
+ambient = { module = "androidx.wear:wear", version.ref = "ambient" }
 play-services-wearable = { group = "com.google.android.gms", name = "play-services-wearable", version.ref = "playServicesWearable" }
 compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
 ui = { group = "androidx.compose.ui", name = "ui" }
