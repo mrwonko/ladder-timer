@@ -12,6 +12,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.wear.ambient.AmbientLifecycleObserver
@@ -24,8 +25,7 @@ import androidx.wear.compose.material3.ProgressIndicatorDefaults
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.SwipeToDismissBox
 import androidx.wear.compose.material3.Text
-import androidx.wear.compose.ui.tooling.preview.WearPreviewDevices
-import androidx.wear.compose.ui.tooling.preview.WearPreviewFontScales
+import androidx.wear.tooling.preview.devices.WearDevices
 import de.mrwonko.laddertimer.R
 import de.mrwonko.laddertimer.presentation.theme.LadderTimerTheme
 
@@ -135,15 +135,17 @@ fun WorkoutScreen(viewModel: LadderViewModel) {
     }
 }
 
-@WearPreviewDevices
-@WearPreviewFontScales
+//@WearPreviewDevices
+//@WearPreviewFontScales
+@Preview(device = WearDevices.LARGE_ROUND, showSystemUi = true)
 @Composable
 fun SplashScreenPreview() {
     LadderApp(LadderViewModel({}))
 }
 
-@WearPreviewDevices
-@WearPreviewFontScales
+//@WearPreviewDevices
+//@WearPreviewFontScales
+@Preview(device = WearDevices.LARGE_ROUND, showSystemUi = true)
 @Composable
 fun ReppingPreview() {
     val model = LadderViewModel({})
