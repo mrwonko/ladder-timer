@@ -60,8 +60,7 @@ enum class WorkoutState {
     IDLE, REPPING, RESTING
 }
 
-class LadderViewModel(keepScreenOn: (Boolean) -> Unit) : ViewModel() {
-    private val keepScreenOn = keepScreenOn;
+class LadderViewModel(private val keepScreenOn: (Boolean) -> Unit) : ViewModel() {
 
     var currentState by mutableStateOf(WorkoutState.IDLE)
         private set
@@ -140,7 +139,7 @@ fun WorkoutScreen(viewModel: LadderViewModel) {
 @Preview(device = WearDevices.LARGE_ROUND, showSystemUi = true)
 @Composable
 fun SplashScreenPreview() {
-    LadderApp(LadderViewModel({}))
+    LadderApp(LadderViewModel {})
 }
 
 //@WearPreviewDevices
@@ -148,7 +147,7 @@ fun SplashScreenPreview() {
 @Preview(device = WearDevices.LARGE_ROUND, showSystemUi = true)
 @Composable
 fun ReppingPreview() {
-    val model = LadderViewModel({})
+    val model = LadderViewModel {}
     model.startWorkout()
     LadderApp(model)
 }
