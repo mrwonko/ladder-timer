@@ -65,6 +65,7 @@ class LadderViewModel(keepScreenOn: (Boolean) -> Unit) : ViewModel() {
 
     var currentState by mutableStateOf(WorkoutState.IDLE)
         private set
+    var progress: Float = 0f
 
     // TODO keep track of remaining time of workout (declaratively via end timestamp?)
     // TODO keep track of current rep count
@@ -96,7 +97,7 @@ fun LadderApp(viewModel: LadderViewModel) {
                 if (isBackground || viewModel.currentState == WorkoutState.IDLE) {
                     SplashScreen { viewModel.startWorkout() }
                 } else {
-                    WorkoutScreen()
+                    WorkoutScreen(viewModel)
                 }
             }
         }
@@ -115,7 +116,7 @@ fun SplashScreen(onStart: () -> Unit = {}) {
 }
 
 @Composable
-fun WorkoutScreen() {
+fun WorkoutScreen(viewModel: LadderViewModel) {
     ScreenScaffold {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("13:37")
@@ -124,7 +125,7 @@ fun WorkoutScreen() {
                 strokeWidth = 4.dp,
                 startAngle = 290f,
                 endAngle = 250f,
-                progress = { .75f },
+                progress = { 1f - viewModel.progress },
                 colors = ProgressIndicatorDefaults.colors(
                     trackColor = MaterialTheme.colorScheme.onBackground.copy(alpha=.1f),
                     indicatorColor = MaterialTheme.colorScheme.onBackground.copy(alpha=.4f),
