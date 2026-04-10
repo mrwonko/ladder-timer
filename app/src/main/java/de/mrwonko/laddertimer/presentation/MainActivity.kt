@@ -7,8 +7,10 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,6 +31,13 @@ import androidx.wear.compose.material3.Text
 import androidx.wear.tooling.preview.devices.WearDevices
 import de.mrwonko.laddertimer.R
 import de.mrwonko.laddertimer.presentation.theme.LadderTimerTheme
+import kotlinx.coroutines.delay
+import java.time.Duration
+import java.time.Instant
+
+object Constants {
+    val WORKOUT_DURATION: Duration = Duration.ofMinutes(7).plusSeconds(30)
+}
 
 class MainActivity : ComponentActivity() {
     private val callbacks = object : AmbientLifecycleObserver.AmbientLifecycleCallback {
@@ -65,7 +74,7 @@ class LadderViewModel(private val keepScreenOn: (Boolean) -> Unit) : ViewModel()
 
     var currentState by mutableStateOf(WorkoutState.IDLE)
         private set
-    var progress: Float = 0f
+    var workoutEnd: Instant = Instant.EPOCH
 
     // TODO keep track of remaining time of workout (declaratively via end timestamp?)
     // TODO keep track of current rep count
@@ -73,6 +82,7 @@ class LadderViewModel(private val keepScreenOn: (Boolean) -> Unit) : ViewModel()
 
     fun startWorkout() {
         keepScreenOn(true)
+        workoutEnd = Instant.now().plus(Constants.WORKOUT_DURATION)
         currentState = WorkoutState.REPPING
     }
 
@@ -117,6 +127,20 @@ fun SplashScreen(onStart: () -> Unit = {}) {
 
 @Composable
 fun WorkoutScreen(viewModel: LadderViewModel) {
+    // State to hold the current remaining time
+    var remainingDuration by remember {
+        mutableStateOf(Duration.between(Instant.now(), viewModel.workoutEnd))
+    }
+    LaunchedEffect(viewModel.workoutEnd) {
+        while (remainingDuration.toMillis() > 0) {
+            val now = Instant.now()
+            remainingDuration = Duration.between(now, viewModel.workoutEnd)
+            // e.g. 1203 -> update in 203 + 1
+            val millisToUpdate = remainingDuration.toMillis() % 1000 + 1
+
+            delay(millisToUpdate)
+        }
+    }
     ScreenScaffold {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("13:37")
@@ -125,7 +149,7 @@ fun WorkoutScreen(viewModel: LadderViewModel) {
                 strokeWidth = 4.dp,
                 startAngle = 290f,
                 endAngle = 250f,
-                progress = { 1f - viewModel.progress },
+                progress = { remainingDuration.toMillis().toFloat() / Constants.WORKOUT_DURATION.toMillis() },
                 colors = ProgressIndicatorDefaults.colors(
                     trackColor = MaterialTheme.colorScheme.onBackground.copy(alpha=.1f),
                     indicatorColor = MaterialTheme.colorScheme.onBackground.copy(alpha=.4f),
