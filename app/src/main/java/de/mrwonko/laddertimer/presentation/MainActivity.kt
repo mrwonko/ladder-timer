@@ -1,6 +1,7 @@
 package de.mrwonko.laddertimer.presentation
 
 import android.os.Bundle
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
@@ -53,12 +54,25 @@ class MainActivity : ComponentActivity() {
     }
     private var ambientObserver = AmbientLifecycleObserver(this, callbacks)
 
+    var viewModel = LadderViewModel();
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         lifecycle.addObserver(ambientObserver)
+        viewModel = LadderViewModel()
         setContent {
-            LadderApp(LadderViewModel())
+            LadderApp(viewModel)
         }
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_POWER && viewModel.currentState != WorkoutState.IDLE) {
+           if (viewModel.currentState == WorkoutState.REPPING) {
+               viewModel.startResting()
+           }
+           return true // (attempt to) consume the event (if the OS likes us)
+        }
+
+        return super.onKeyDown(keyCode, event)
     }
 }
 
