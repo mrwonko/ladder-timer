@@ -1,6 +1,7 @@
 package de.mrwonko.laddertimer.presentation
 
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.VibratorManager
@@ -76,6 +77,16 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             LadderApp(viewModel)
+        }
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        // If launched while repping, assume it's a rest intent.
+        // (Apparently I can't bind specific intents to buttons, only launch the app.)
+        if (viewModel.currentState == WorkoutState.REPPING) {
+            viewModel.startResting()
         }
     }
 
