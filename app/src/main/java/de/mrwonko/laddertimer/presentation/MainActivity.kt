@@ -52,8 +52,10 @@ object Constants {
 class MainActivity : ComponentActivity() {
     private val callbacks = object : AmbientLifecycleObserver.AmbientLifecycleCallback {
         override fun onEnterAmbient(ambientDetails: AmbientLifecycleObserver.AmbientDetails) {
-            // move to background to avoid ambient transition digital clock and go straight to watch face
-            moveTaskToBack(true)
+            if (viewModel.currentState == WorkoutState.IDLE) {
+                // move to background to avoid ambient transition digital clock and go straight to watch face
+                moveTaskToBack(true)
+            }
         }
 
         override fun onExitAmbient() {
