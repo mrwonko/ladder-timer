@@ -1,6 +1,9 @@
 package de.mrwonko.laddertimer.presentation
 
+import android.content.Context
 import android.os.Bundle
+import android.os.VibrationEffect
+import android.os.VibratorManager
 import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -40,6 +43,10 @@ import java.time.Instant
 
 object Constants {
     val WORKOUT_DURATION: Duration = Duration.ofMinutes(7).plusSeconds(30)
+    val SHORT_BUZZ = longArrayOf(0, 200)
+    val LONG_BUZZ = longArrayOf(0, 690)
+    val QUICK_DOUBLE_BUZZ = longArrayOf(0, 200, 100, 200)
+    val LONG_TRIPLE_BUZZ = longArrayOf(0, 500, 200, 500, 200, 500)
 }
 
 class MainActivity : ComponentActivity() {
@@ -53,12 +60,18 @@ class MainActivity : ComponentActivity() {
         }
     }
     private var ambientObserver = AmbientLifecycleObserver(this, callbacks)
+    private val vibrator by lazy {(getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator }
 
     var viewModel = LadderViewModel();
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         lifecycle.addObserver(ambientObserver)
         viewModel = LadderViewModel()
+        viewModel.onVibrateRequest = { pattern ->
+            if (vibrator.hasVibrator()) {
+                vibrator.vibrate(VibrationEffect.createWaveform(pattern, -1))
+            }
+        }
         setContent {
             LadderApp(viewModel)
         }
@@ -81,30 +94,38 @@ enum class WorkoutState {
 }
 
 class LadderViewModel : ViewModel() {
+    var onVibrateRequest: ((LongArray) -> Unit)? = null
 
     var currentState by mutableStateOf(WorkoutState.IDLE)
         private set
     var workoutEnd: Instant = Instant.EPOCH
     var setStart: Instant = Instant.EPOCH
 
-    // TODO keep track of remaining time of workout (declaratively via end timestamp?)
     // TODO keep track of current rep count
     // TODO keep track of whether we're going up or down the ladder
 
     fun startWorkout() {
+        onVibrateRequest?.invoke(Constants.LONG_BUZZ)
         setStart = Instant.now()
         workoutEnd = setStart.plus(Constants.WORKOUT_DURATION)
         currentState = WorkoutState.REPPING
     }
 
     fun startResting() {
+        onVibrateRequest?.invoke(Constants.SHORT_BUZZ)
         val setDuration = Duration.between(setStart, Instant.now())
         setStart = setStart.plus(setDuration.multipliedBy(2))
         currentState = WorkoutState.RESTING
     }
 
     fun stopResting() {
+        onVibrateRequest?.invoke(Constants.QUICK_DOUBLE_BUZZ)
         currentState = WorkoutState.REPPING
+    }
+
+    fun finishWorkout() {
+        onVibrateRequest?.invoke(Constants.LONG_TRIPLE_BUZZ)
+        abortWorkout()
     }
 
     fun abortWorkout() {
@@ -231,7 +252,7 @@ fun WorkoutScreen(viewModel: LadderViewModel) {
             }
             CountDown(
                 viewModel.workoutEnd,
-                onFinished = viewModel::abortWorkout
+                onFinished = viewModel::finishWorkout
             ) { remainingDuration ->
                 CircularProgressIndicator(
                     modifier = Modifier.fillMaxSize(),
