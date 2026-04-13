@@ -8,8 +8,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -126,35 +128,48 @@ fun SplashScreen(onStart: () -> Unit = {}) {
 }
 
 @Composable
-fun WorkoutScreen(viewModel: LadderViewModel) {
+fun CountDown(
+    until : Instant,
+    updateIntervalMS: Long = 1000,
+    onFinished: () -> Unit = {},
+    content: @Composable (remainingDuration: State<Duration>) -> Unit,
+    ) {
     // State to hold the current remaining time
-    var remainingDuration by remember {
-        mutableStateOf(Duration.between(Instant.now(), viewModel.workoutEnd))
-    }
-    LaunchedEffect(viewModel.workoutEnd) {
-        while (remainingDuration.toMillis() > 0) {
-            val now = Instant.now()
-            remainingDuration = Duration.between(now, viewModel.workoutEnd)
-            // e.g. 1203 -> update in 203 + 1
-            val millisToUpdate = remainingDuration.toMillis() % 1000 + 1
+    val remainingDuration = produceState(
+        Duration.between(Instant.now(), until),
+        until,
+    ) {
+        while (value.toMillis() > 0) {
+            value = Duration.between(Instant.now(), until)
+            // e.g. 1203ms remaining -> update in 203ms + 1ms (on 999ms, not 1000ms)
+            val millisToUpdate = value.toMillis() % updateIntervalMS + 1
 
             delay(millisToUpdate)
         }
+        onFinished()
     }
+    content(remainingDuration)
+}
+
+@Composable
+fun WorkoutScreen(viewModel: LadderViewModel) {
     ScreenScaffold {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("13:37")
-            CircularProgressIndicator(
-                modifier= Modifier.fillMaxSize(),
-                strokeWidth = 4.dp,
-                startAngle = 290f,
-                endAngle = 250f,
-                progress = { remainingDuration.toMillis().toFloat() / Constants.WORKOUT_DURATION.toMillis() },
-                colors = ProgressIndicatorDefaults.colors(
-                    trackColor = MaterialTheme.colorScheme.onBackground.copy(alpha=.1f),
-                    indicatorColor = MaterialTheme.colorScheme.onBackground.copy(alpha=.4f),
-                ),
-            )
+            CountDown(viewModel.workoutEnd, onFinished = viewModel::abortWorkout) {
+                remainingDuration ->
+                CircularProgressIndicator(
+                    modifier= Modifier.fillMaxSize(),
+                    strokeWidth = 4.dp,
+                    startAngle = 290f,
+                    endAngle = 250f,
+                    progress = { remainingDuration.value.toMillis().toFloat() / Constants.WORKOUT_DURATION.toMillis() },
+                    colors = ProgressIndicatorDefaults.colors(
+                        trackColor = MaterialTheme.colorScheme.onBackground.copy(alpha=.1f),
+                        indicatorColor = MaterialTheme.colorScheme.onBackground.copy(alpha=.4f),
+                    ),
+                )
+            }
         }
     }
 }
