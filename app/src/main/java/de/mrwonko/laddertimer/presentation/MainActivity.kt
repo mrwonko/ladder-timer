@@ -1,24 +1,22 @@
 package de.mrwonko.laddertimer.presentation
 
 import android.os.Bundle
-import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -59,13 +57,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         lifecycle.addObserver(ambientObserver)
         setContent {
-            LadderApp(LadderViewModel { keepScreenOn ->
-                if (keepScreenOn) {
-                    this.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                } else {
-                    this.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                }
-            })
+            LadderApp(LadderViewModel())
         }
     }
 }
@@ -74,7 +66,7 @@ enum class WorkoutState {
     IDLE, REPPING, RESTING
 }
 
-class LadderViewModel(private val keepScreenOn: (Boolean) -> Unit) : ViewModel() {
+class LadderViewModel : ViewModel() {
 
     var currentState by mutableStateOf(WorkoutState.IDLE)
         private set
@@ -86,7 +78,6 @@ class LadderViewModel(private val keepScreenOn: (Boolean) -> Unit) : ViewModel()
     // TODO keep track of whether we're going up or down the ladder
 
     fun startWorkout() {
-        keepScreenOn(true)
         setStart = Instant.now()
         workoutEnd = setStart.plus(Constants.WORKOUT_DURATION)
         currentState = WorkoutState.REPPING
@@ -103,7 +94,6 @@ class LadderViewModel(private val keepScreenOn: (Boolean) -> Unit) : ViewModel()
     }
 
     fun abortWorkout() {
-        keepScreenOn(false)
         currentState = WorkoutState.IDLE
     }
 
@@ -203,6 +193,14 @@ fun TimeText(duration: Duration) {
 
 @Composable
 fun WorkoutScreen(viewModel: LadderViewModel) {
+    // keep screen on while this composable is visible
+    val view = LocalView.current
+    DisposableEffect(true) {
+        view.keepScreenOn = true
+        onDispose {
+            view.keepScreenOn = false
+        }
+    }
     ScreenScaffold {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             if (viewModel.currentState == WorkoutState.REPPING) {
@@ -245,7 +243,7 @@ fun WorkoutScreen(viewModel: LadderViewModel) {
 @Preview(device = WearDevices.LARGE_ROUND, showSystemUi = true)
 @Composable
 fun SplashScreenPreview() {
-    LadderApp(LadderViewModel {})
+    LadderApp(LadderViewModel())
 }
 
 //@WearPreviewDevices
@@ -253,7 +251,7 @@ fun SplashScreenPreview() {
 @Preview(device = WearDevices.LARGE_ROUND, showSystemUi = true)
 @Composable
 fun ReppingPreview() {
-    val model = LadderViewModel {}
+    val model = LadderViewModel()
     model.startWorkout()
     LadderApp(model)
 }
