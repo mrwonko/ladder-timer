@@ -17,6 +17,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -77,6 +79,7 @@ class LadderViewModel(private val keepScreenOn: (Boolean) -> Unit) : ViewModel()
     var currentState by mutableStateOf(WorkoutState.IDLE)
         private set
     var workoutEnd: Instant = Instant.EPOCH
+    var setStart: Instant = Instant.EPOCH
 
     // TODO keep track of remaining time of workout (declaratively via end timestamp?)
     // TODO keep track of current rep count
@@ -84,7 +87,8 @@ class LadderViewModel(private val keepScreenOn: (Boolean) -> Unit) : ViewModel()
 
     fun startWorkout() {
         keepScreenOn(true)
-        workoutEnd = Instant.now().plus(Constants.WORKOUT_DURATION)
+        setStart = Instant.now()
+        workoutEnd = setStart.plus(Constants.WORKOUT_DURATION)
         currentState = WorkoutState.REPPING
     }
 
@@ -129,7 +133,7 @@ fun SplashScreen(onStart: () -> Unit = {}) {
 
 @Composable
 fun CountDown(
-    until : Instant,
+    until: Instant,
     updateIntervalMS: Long = 1000,
     onFinished: () -> Unit = {},
     content: @Composable (remainingDuration: State<Duration>) -> Unit,
@@ -152,10 +156,43 @@ fun CountDown(
 }
 
 @Composable
+fun CountUp(
+    from: Instant,
+    updateIntervalMS: Long = 1000,
+    content: @Composable (passedDuration: State<Duration>) -> Unit,
+) {
+    // State to hold the current passed time
+    val passedDuration = produceState(
+        Duration.between(from, Instant.now()),
+        from,
+    ) {
+        while (true) {
+            // e.g. 1300ms passed -> update in 1000ms-300ms=700ms
+            val millisToUpdate = updateIntervalMS.minus(value.toMillis() % updateIntervalMS)
+
+            delay(millisToUpdate)
+
+            value = Duration.between(from, Instant.now())
+        }
+    }
+    content(passedDuration)
+}
+
+@Composable
 fun WorkoutScreen(viewModel: LadderViewModel) {
     ScreenScaffold {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("13:37")
+            CountUp(viewModel.setStart) {
+                passedDuration ->
+                Text(
+                    String.format(
+                        java.util.Locale.ROOT,
+                        "%02d:%02d",
+                        passedDuration.value.toMinutes(),
+                        passedDuration.value.toSecondsPart()),
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
             CountDown(viewModel.workoutEnd, onFinished = viewModel::abortWorkout) {
                 remainingDuration ->
                 CircularProgressIndicator(
