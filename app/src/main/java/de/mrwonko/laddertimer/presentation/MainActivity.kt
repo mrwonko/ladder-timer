@@ -59,7 +59,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         lifecycle.addObserver(ambientObserver)
         setContent {
-            LadderApp(LadderViewModel{keepScreenOn ->
+            LadderApp(LadderViewModel { keepScreenOn ->
                 if (keepScreenOn) {
                     this.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 } else {
@@ -89,6 +89,16 @@ class LadderViewModel(private val keepScreenOn: (Boolean) -> Unit) : ViewModel()
         keepScreenOn(true)
         setStart = Instant.now()
         workoutEnd = setStart.plus(Constants.WORKOUT_DURATION)
+        currentState = WorkoutState.REPPING
+    }
+
+    fun startResting() {
+        val setDuration = Duration.between(setStart, Instant.now())
+        setStart = setStart.plus(setDuration.multipliedBy(2))
+        currentState = WorkoutState.RESTING
+    }
+
+    fun stopResting() {
         currentState = WorkoutState.REPPING
     }
 
@@ -137,7 +147,7 @@ fun CountDown(
     updateIntervalMS: Long = 1000,
     onFinished: () -> Unit = {},
     content: @Composable (remainingDuration: State<Duration>) -> Unit,
-    ) {
+) {
     // State to hold the current remaining time
     val remainingDuration = produceState(
         Duration.between(Instant.now(), until),
@@ -179,31 +189,50 @@ fun CountUp(
 }
 
 @Composable
+fun TimeText(duration: Duration) {
+    Text(
+        String.format(
+            java.util.Locale.ROOT,
+            "%02d:%02d",
+            duration.toMinutes(),
+            duration.toSecondsPart()
+        ),
+        fontFamily = FontFamily.Monospace,
+    )
+}
+
+@Composable
 fun WorkoutScreen(viewModel: LadderViewModel) {
     ScreenScaffold {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CountUp(viewModel.setStart) {
-                passedDuration ->
-                Text(
-                    String.format(
-                        java.util.Locale.ROOT,
-                        "%02d:%02d",
-                        passedDuration.value.toMinutes(),
-                        passedDuration.value.toSecondsPart()),
-                    fontFamily = FontFamily.Monospace,
-                )
+            if (viewModel.currentState == WorkoutState.REPPING) {
+                CountUp(viewModel.setStart) { passedDuration ->
+                    TimeText(passedDuration.value)
+                }
+            } else {
+                CountDown(
+                    viewModel.setStart,
+                    onFinished = viewModel::stopResting,
+                ) { passedDuration ->
+                    TimeText(passedDuration.value)
+                }
             }
-            CountDown(viewModel.workoutEnd, onFinished = viewModel::abortWorkout) {
-                remainingDuration ->
+            CountDown(
+                viewModel.workoutEnd,
+                onFinished = viewModel::abortWorkout
+            ) { remainingDuration ->
                 CircularProgressIndicator(
-                    modifier= Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize(),
                     strokeWidth = 4.dp,
                     startAngle = 290f,
                     endAngle = 250f,
-                    progress = { remainingDuration.value.toMillis().toFloat() / Constants.WORKOUT_DURATION.toMillis() },
+                    progress = {
+                        remainingDuration.value.toMillis()
+                            .toFloat() / Constants.WORKOUT_DURATION.toMillis()
+                    },
                     colors = ProgressIndicatorDefaults.colors(
-                        trackColor = MaterialTheme.colorScheme.onBackground.copy(alpha=.1f),
-                        indicatorColor = MaterialTheme.colorScheme.onBackground.copy(alpha=.4f),
+                        trackColor = MaterialTheme.colorScheme.onBackground.copy(alpha = .1f),
+                        indicatorColor = MaterialTheme.colorScheme.onBackground.copy(alpha = .4f),
                     ),
                 )
             }
