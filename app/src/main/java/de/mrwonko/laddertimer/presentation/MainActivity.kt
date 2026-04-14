@@ -1,6 +1,8 @@
 package de.mrwonko.laddertimer.presentation
 
-import android.content.Context
+import android.Manifest
+import android.app.AlarmManager
+import android.app.PendingIntent
 import android.content.Intent
 import android.os.Bundle
 import android.os.VibrationEffect
@@ -8,6 +10,7 @@ import android.os.VibratorManager
 import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.annotation.RequiresPermission
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -48,6 +51,8 @@ object Constants {
     val LONG_BUZZ = longArrayOf(0, 690)
     val QUICK_DOUBLE_BUZZ = longArrayOf(0, 200, 100, 200)
     val LONG_TRIPLE_BUZZ = longArrayOf(0, 500, 200, 500, 200, 500)
+    const val ACTION_STOP_RESTING = "de.mrwonko.laddertimer.ACTION_STOP_RESTING"
+    const val ACTION_FINISH_WORKOUT = "de.mrwonko.laddertimer.ACTION_FINISH_WORKOUT"
 }
 
 class MainActivity : ComponentActivity() {
@@ -63,18 +68,49 @@ class MainActivity : ComponentActivity() {
         }
     }
     private var ambientObserver = AmbientLifecycleObserver(this, callbacks)
-    private val vibrator by lazy {(getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator }
+    private val vibrator by lazy {(getSystemService(VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator }
+    private val alarmManager by lazy { getSystemService(ALARM_SERVICE) as AlarmManager }
 
-    var viewModel = LadderViewModel();
+    private fun createAlarmIntent(action: String): PendingIntent {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            this.action = action
+            this.flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        return PendingIntent.getActivity(
+            this,
+            action.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    @RequiresPermission(Manifest.permission.SCHEDULE_EXACT_ALARM)
+    private fun scheduleAlarm(time: Instant, action: String) {
+        alarmManager.setExactAndAllowWhileIdle(
+            AlarmManager.RTC_WAKEUP,
+            time.toEpochMilli(),
+            createAlarmIntent(action)
+        )
+    }
+
+    private fun cancelAlarm(action: String) {
+        alarmManager.cancel(createAlarmIntent(action))
+    }
+
+    var viewModel = LadderViewModel()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         lifecycle.addObserver(ambientObserver)
-        viewModel = LadderViewModel()
-        viewModel.onVibrateRequest = { pattern ->
-            if (vibrator.hasVibrator()) {
-                vibrator.vibrate(VibrationEffect.createWaveform(pattern, -1))
+        viewModel = LadderViewModel().apply{
+            onVibrateRequest = { pattern ->
+                if (vibrator.hasVibrator()) {
+                    vibrator.vibrate(VibrationEffect.createWaveform(pattern, -1))
+                }
             }
+            onScheduleAlarm = ::scheduleAlarm
+            onCancelAlarm = ::cancelAlarm
         }
+
         setContent {
             LadderApp(viewModel)
         }
@@ -83,10 +119,16 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
         setIntent(intent)
-        // If launched while repping, assume it's a rest intent.
-        // (Apparently I can't bind specific intents to buttons, only launch the app.)
-        if (viewModel.currentState == WorkoutState.REPPING) {
-            viewModel.startResting()
+        when (intent?.action) {
+            Constants.ACTION_STOP_RESTING -> viewModel.stopResting()
+            Constants.ACTION_FINISH_WORKOUT -> viewModel.finishWorkout()
+            else -> {
+                // If launched while repping, assume it's a rest intent.
+                // (Apparently I can't bind specific intents to buttons, only launch the app.)
+                if (viewModel.currentState == WorkoutState.REPPING) {
+                    viewModel.startResting()
+                }
+            }
         }
     }
 
@@ -108,6 +150,8 @@ enum class WorkoutState {
 
 class LadderViewModel : ViewModel() {
     var onVibrateRequest: ((LongArray) -> Unit)? = null
+    var onScheduleAlarm: ((Instant, String) -> Unit)? = null
+    var onCancelAlarm: ((String) -> Unit)? = null
 
     var currentState by mutableStateOf(WorkoutState.IDLE)
         private set
@@ -118,30 +162,40 @@ class LadderViewModel : ViewModel() {
     // TODO keep track of whether we're going up or down the ladder
 
     fun startWorkout() {
+        if (currentState != WorkoutState.IDLE) return
         onVibrateRequest?.invoke(Constants.LONG_BUZZ)
         setStart = Instant.now()
         workoutEnd = setStart.plus(Constants.WORKOUT_DURATION)
+        onScheduleAlarm?.invoke(workoutEnd, Constants.ACTION_FINISH_WORKOUT)
         currentState = WorkoutState.REPPING
     }
 
     fun startResting() {
+        if (currentState != WorkoutState.REPPING) return
         onVibrateRequest?.invoke(Constants.SHORT_BUZZ)
         val setDuration = Duration.between(setStart, Instant.now())
         setStart = setStart.plus(setDuration.multipliedBy(2))
+        onScheduleAlarm?.invoke(setStart, Constants.ACTION_STOP_RESTING)
         currentState = WorkoutState.RESTING
     }
 
     fun stopResting() {
+        if (currentState != WorkoutState.RESTING) return
         onVibrateRequest?.invoke(Constants.QUICK_DOUBLE_BUZZ)
+        onCancelAlarm?.invoke(Constants.ACTION_STOP_RESTING)
         currentState = WorkoutState.REPPING
     }
 
     fun finishWorkout() {
+        if (currentState == WorkoutState.IDLE) return
         onVibrateRequest?.invoke(Constants.LONG_TRIPLE_BUZZ)
         abortWorkout()
     }
 
     fun abortWorkout() {
+        if (currentState == WorkoutState.IDLE) return
+        onCancelAlarm?.invoke(Constants.ACTION_FINISH_WORKOUT)
+        onCancelAlarm?.invoke(Constants.ACTION_STOP_RESTING)
         currentState = WorkoutState.IDLE
     }
 
