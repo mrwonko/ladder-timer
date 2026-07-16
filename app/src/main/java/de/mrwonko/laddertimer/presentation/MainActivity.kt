@@ -2,7 +2,10 @@ package de.mrwonko.laddertimer.presentation
 
 import android.Manifest
 import android.app.AlarmManager
+import android.app.Application
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.os.VibrationEffect
@@ -56,28 +59,30 @@ object Constants {
     const val ACTION_FINISH_WORKOUT = "de.mrwonko.laddertimer.ACTION_FINISH_WORKOUT"
 }
 
-class MainActivity : ComponentActivity() {
-    private val callbacks = object : AmbientLifecycleObserver.AmbientLifecycleCallback {
-        override fun onEnterAmbient(ambientDetails: AmbientLifecycleObserver.AmbientDetails) {
-            if (viewModel.currentState == WorkoutState.IDLE) {
-                // move to background to avoid ambient transition digital clock and go straight to watch face
-                moveTaskToBack(true)
-            }
-        }
-
-        override fun onExitAmbient() {
+// Alarms target this receiver rather than MainActivity directly: starting an Activity from a
+// background alarm is subject to background-activity-launch restrictions and can be deferred
+// until the app becomes foregrounded, which delayed the vibration signalling rest's end.
+// Broadcast delivery isn't subject to that restriction, so it fires (and vibrates) on time.
+class AlarmReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val viewModel = (context.applicationContext as LadderApplication).viewModel
+        when (intent.action) {
+            Constants.ACTION_STOP_RESTING -> viewModel.stopResting()
+            Constants.ACTION_FINISH_WORKOUT -> viewModel.finishWorkout()
         }
     }
-    private var ambientObserver = AmbientLifecycleObserver(this, callbacks)
-    private val vibrator by lazy {(getSystemService(VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator }
+}
+
+class LadderApplication : Application() {
+    val viewModel = LadderViewModel()
+    private val vibrator by lazy { (getSystemService(VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator }
     private val alarmManager by lazy { getSystemService(ALARM_SERVICE) as AlarmManager }
 
     private fun createAlarmIntent(action: String): PendingIntent {
-        val intent = Intent(this, MainActivity::class.java).apply {
+        val intent = Intent(this, AlarmReceiver::class.java).apply {
             this.action = action
-            this.flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
-        return PendingIntent.getActivity(
+        return PendingIntent.getBroadcast(
             this,
             action.hashCode(),
             intent,
@@ -98,19 +103,36 @@ class MainActivity : ComponentActivity() {
         alarmManager.cancel(createAlarmIntent(action))
     }
 
-    var viewModel = LadderViewModel()
+    override fun onCreate() {
+        super.onCreate()
+        viewModel.onVibrateRequest = { pattern ->
+            if (vibrator.hasVibrator()) {
+                vibrator.vibrate(VibrationEffect.createWaveform(pattern, -1))
+            }
+        }
+        viewModel.onScheduleAlarm = ::scheduleAlarm
+        viewModel.onCancelAlarm = ::cancelAlarm
+    }
+}
+
+class MainActivity : ComponentActivity() {
+    private val callbacks = object : AmbientLifecycleObserver.AmbientLifecycleCallback {
+        override fun onEnterAmbient(ambientDetails: AmbientLifecycleObserver.AmbientDetails) {
+            if (viewModel.currentState == WorkoutState.IDLE) {
+                // move to background to avoid ambient transition digital clock and go straight to watch face
+                moveTaskToBack(true)
+            }
+        }
+
+        override fun onExitAmbient() {
+        }
+    }
+    private var ambientObserver = AmbientLifecycleObserver(this, callbacks)
+    private val viewModel: LadderViewModel get() = (application as LadderApplication).viewModel
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         lifecycle.addObserver(ambientObserver)
-        viewModel = LadderViewModel().apply{
-            onVibrateRequest = { pattern ->
-                if (vibrator.hasVibrator()) {
-                    vibrator.vibrate(VibrationEffect.createWaveform(pattern, -1))
-                }
-            }
-            onScheduleAlarm = ::scheduleAlarm
-            onCancelAlarm = ::cancelAlarm
-        }
 
         setContent {
             LadderApp(viewModel)
@@ -120,16 +142,10 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
         setIntent(intent)
-        when (intent?.action) {
-            Constants.ACTION_STOP_RESTING -> viewModel.stopResting()
-            Constants.ACTION_FINISH_WORKOUT -> viewModel.finishWorkout()
-            else -> {
-                // If launched while repping, assume it's a rest intent.
-                // (Apparently I can't bind specific intents to buttons, only launch the app.)
-                if (viewModel.currentState == WorkoutState.REPPING) {
-                    viewModel.startResting()
-                }
-            }
+        // If launched while repping, assume it's a rest intent.
+        // (Apparently I can't bind specific intents to buttons, only launch the app.)
+        if (viewModel.currentState == WorkoutState.REPPING) {
+            viewModel.startResting()
         }
     }
 
