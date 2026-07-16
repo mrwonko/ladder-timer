@@ -44,6 +44,7 @@ import de.mrwonko.laddertimer.presentation.theme.LadderTimerTheme
 import kotlinx.coroutines.delay
 import java.time.Duration
 import java.time.Instant
+import kotlin.time.toKotlinDuration
 
 object Constants {
     val WORKOUT_DURATION: Duration = Duration.ofMinutes(7).plusSeconds(30)
@@ -236,7 +237,7 @@ fun SplashScreen(onStart: () -> Unit = {}) {
 @Composable
 fun CountDown(
     until: Instant,
-    updateIntervalMS: Long = 1000,
+    updateInterval: Duration = Duration.ofSeconds(1),
     onFinished: () -> Unit = {},
     content: @Composable (remainingDuration: State<Duration>) -> Unit,
 ) {
@@ -248,9 +249,9 @@ fun CountDown(
         while (value.toMillis() > 0) {
             value = Duration.between(Instant.now(), until)
             // e.g. 1203ms remaining -> update in 203ms + 1ms (on 999ms, not 1000ms)
-            val millisToUpdate = value.toMillis() % updateIntervalMS + 1
+            val updateDelay = value % updateInterval.plus(Duration.ofMillis(1))
 
-            delay(millisToUpdate)
+            delay(updateDelay.toKotlinDuration())
         }
         onFinished()
     }
@@ -260,7 +261,7 @@ fun CountDown(
 @Composable
 fun CountUp(
     from: Instant,
-    updateIntervalMS: Long = 1000,
+    updateInterval: Duration = Duration.ofSeconds(1),
     content: @Composable (passedDuration: State<Duration>) -> Unit,
 ) {
     // State to hold the current passed time
@@ -270,9 +271,9 @@ fun CountUp(
     ) {
         while (true) {
             // e.g. 1300ms passed -> update in 1000ms-300ms=700ms
-            val millisToUpdate = updateIntervalMS.minus(value.toMillis() % updateIntervalMS)
+            val updateDelay = updateInterval.minus(value % updateInterval)
 
-            delay(millisToUpdate)
+            delay(updateDelay.toKotlinDuration())
 
             value = Duration.between(from, Instant.now())
         }
@@ -338,6 +339,10 @@ fun WorkoutScreen(viewModel: LadderViewModel) {
             }
         }
     }
+}
+
+operator fun Duration.rem(other: Duration): Duration {
+    return Duration.ofNanos(this.toNanos() % other.toNanos())
 }
 
 //@WearPreviewDevices
