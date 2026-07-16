@@ -313,7 +313,6 @@ fun WorkoutScreen(viewModel: LadderViewModel) {
             } else {
                 CountDown(
                     viewModel.setStart,
-                    onFinished = viewModel::stopResting,
                 ) { passedDuration ->
                     TimeText(passedDuration.value)
                 }
